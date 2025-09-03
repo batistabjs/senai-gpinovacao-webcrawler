@@ -9,8 +9,7 @@ import json
 
 class SenaiWebCrawler:
     
-    def __init__(self, base_url: str, delay: float = 1.0):
-        self.base_url = base_url
+    def __init__(self: str, delay: float = 1.0):
         self.delay = delay
         self.session = requests.Session()
         
@@ -46,12 +45,13 @@ class SenaiWebCrawler:
         destaque_tag = soup.find('div', class_=lambda value: value == 'destaque')
         # detalhes
         detalhes_tag = soup.find('div', id_=lambda value: value == 'detalhes')
+        print(detalhes_tag)
         # equipe
-        equipe_tag = soup.find('div', id_=lambda value: value == 'equipe')
+#        equipe_tag = soup.find('div', id_=lambda value: value == 'equipe')
         # comentarios
-        comentarios_tag = soup.find('div', id_=lambda value: value == 'comentarios')
+ #       comentarios_tag = soup.find('div', id_=lambda value: value == 'comentarios')
         # complementos
-        complementos_tag = soup.find('div', id_=lambda value: value == 'complementos')
+  #      complementos_tag = soup.find('div', id_=lambda value: value == 'complementos')
         
         try:
             idea_data = {
@@ -69,76 +69,34 @@ class SenaiWebCrawler:
             self.logger.warning(f"Erro ao extrair dados da ideia: {e}")
         
         return ideas_data
-    
-    def find_next_page(self, soup: BeautifulSoup, current_page: int) -> Optional[str]:
-        """
-        Encontra a próxima página se existir
-        
-        Args:
-            soup: BeautifulSoup da página atual
-            current_page: Número da página atual
-            
-        Returns:
-            URL da próxima página ou None
-        """
-        # Procurar por links de paginação
-        pagination_links = soup.find_all('a', href=lambda x: x and 'page=' in x)
-        
-        if pagination_links:
-            # Buscar página seguinte
-            next_page = current_page + 1
-            for link in pagination_links:
-                href = link.get('href')
-                if f'page={next_page}' in href:
-                    return urljoin(self.base_url, href)
-        
-        # Alternativa: tentar construir URL da próxima página
-        try:
-            parsed_url = urlparse(self.base_url)
-            base_without_params = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
-            next_url = f"{base_without_params}?page={current_page + 1}"
-            
-            # Verificar se a próxima página existe
-            test_soup = self.fetch_page(next_url)
-            if test_soup and self.extract_user_data(test_soup):
-                return next_url
-        except:
-            pass
-        
-        return None
-    
-    def crawl_all_pages(self) -> Dict:
+      
+    def crawl_all_pages(self, urls) -> Dict:
         all_data = {
             'ideias': [],
             'total_paginas': 0,
             'total_ideias': 0
         }
-        
-        current_page = 1
-        current_url = self.base_url
-        
-        self.logger.info(f"Página {current_page}, URL {current_url}")
-        
-        # Fetch da página atual
-        soup = self.fetch_page(current_url)
-        if not soup:
-            self.logger.error(f"Não foi possível acessar a página {current_page}")
 
-        # Extrair dados das ideias
-        ideas_data = self.extract_idea_data(soup)
-        if not ideas_data:
-            self.logger.info(f"Nenhuma Ideia encontrada na página {current_page}")
-        
-        all_data['ideias'].extend(ideas_data)
-        all_data['total_paginas'] = current_page
-        
-        current_page += 1
-        
-        # Delay entre requisições
-        time.sleep(self.delay)
-        
-        all_data['total_ideias'] = len(all_data['ideias'])
-        
+        for url in urls:
+            self.logger.info(f" URL {url}")
+            
+            # Fetch da página atual
+            soup = self.fetch_page(url)
+            if not soup:
+                self.logger.error(f"Não foi possível acessar a página {url}")
+
+            # Extrair dados das ideias
+            ideas_data = self.extract_idea_data(soup)
+            if not ideas_data:
+                self.logger.info(f"Nenhuma Ideia encontrada na página {url}")
+            
+            all_data['ideias'].extend(ideas_data)
+            
+            # Delay entre requisições
+            time.sleep(self.delay)
+            
+            all_data['total_ideias'] = len(all_data['ideias'])
+            
         return all_data
     
     def save_to_files(self, data: Dict, base_filename: str = 'senai_data'):
@@ -175,15 +133,15 @@ def json_extract_links(arquivo_json: str, chaves: List[str] = None) -> Dict[str,
 
 def main():
     # URL da ideia
-    url = json_extract_links('senai_desafio_1885.json');
-    print(url)
+    urls = json_extract_links('senai1885_ideia_links_reduce.json');
+    print(urls)
 
     # Inicializar crawler
-    crawler = SenaiWebCrawler(url, delay=1.5) # 545 pag totais
+    crawler = SenaiWebCrawler(delay=3) # 545 pag totais
     print("🚀 Iniciando extração de dados da plataforma SENAI...")
 
     # Executar crawling
-    data = crawler.crawl_all_pages()
+    data = crawler.crawl_all_pages(urls)
     
     # Exibir resultados
     print(f"\n📊 Resultados da Extração:")
