@@ -9,7 +9,8 @@ import json
 
 class SenaiWebCrawler:
     
-    def __init__(self: str, delay: float = 1.0):
+    def __init__(self, base_url: str, delay: float = 1.0):
+        self.base_url = base_url
         self.delay = delay
         self.session = requests.Session()
         
@@ -27,38 +28,40 @@ class SenaiWebCrawler:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
     
-    def fetch_page(self, url: str) -> Optional[BeautifulSoup]:
+    def fetch_page(self: str) -> Optional[BeautifulSoup]:
         try:
-            response = self.session.get(url, timeout=30)
+            response = requests.get(self.base_url, timeout=30)
             response.raise_for_status()
             
             return BeautifulSoup(response.content, 'html.parser')
             
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Erro ao acessar {url}: {e}")
+            self.logger.error("Erro ao acessar {url}: {e}")
             return None
     
     def extract_idea_data(self, soup: BeautifulSoup) -> List[Dict]:
         ideas_data = []
-        
         # destaque
-        destaque_tag = soup.find('div', class_=lambda value: value == 'destaque')
+        #destaque_tag = soup.select('.destaque')
+        #print(destaque_tag)
         # detalhes
-        detalhes_tag = soup.find('div', id_=lambda value: value == 'detalhes')
-        print(detalhes_tag)
+        #detalhes_tag = soup.select('#detalhes')    
+        #print(detalhes_tag)
         # equipe
-#        equipe_tag = soup.find('div', id_=lambda value: value == 'equipe')
+        equipe_tag = soup.find("div", id = "equipe")
         # comentarios
- #       comentarios_tag = soup.find('div', id_=lambda value: value == 'comentarios')
+        comentarios_tag = soup.find("div", id = "comentarios")
         # complementos
-  #      complementos_tag = soup.find('div', id_=lambda value: value == 'complementos')
+        complementos_tag = soup.find("div", id = "complementos")
         
+        print (soup.select("div.destaque > h2:nth-of-type(1)"))
+        print (soup.select('div#detalhes > p:nth-of-type(2)'))
         try:
             idea_data = {
-                'idea_titulo': destaque_tag.find('h2').get_text(strip=True),
-                'idea_estado': detalhes_tag.find('p')[1].get_text(strip=True),
-                'idea_departamento': detalhes_tag.find('p')[2].get_text(strip=True),
-                'idea_demanda': detalhes_tag.find('p')[3].get_text(strip=True)
+                'idea_titulo': soup.select("div.destaque > h2:nth-of-type(1)").get_text(strip=True),
+                #'idea_estado': soup.select('div#detalhes > p')[1].get_text(strip=True)#,detalhes_tag.find('p')[1].get_text(strip=True),
+                #'idea_departamento': detalhes_tag.find('p')[2].get_text(strip=True),
+                #'idea_demanda': detalhes_tag.find('p')[3].get_text(strip=True)
             }
 
             print(idea_data)
@@ -79,9 +82,10 @@ class SenaiWebCrawler:
 
         for url in urls:
             self.logger.info(f" URL {url}")
+            self.base_url = url
             
             # Fetch da página atual
-            soup = self.fetch_page(url)
+            soup = self.fetch_page()
             if not soup:
                 self.logger.error(f"Não foi possível acessar a página {url}")
 
@@ -105,17 +109,17 @@ class SenaiWebCrawler:
             json_filename = f"{base_filename}.json"
             with open(json_filename, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            self.logger.info(f"Dados salvos em {json_filename}")
+            self.logger.info("Dados salvos em {json_filename}")
             
             # Salvar ideias em CSV
             if data['ideias']:
                 csv_filename = f"{base_filename}_ideias.csv"
                 df_users = pd.DataFrame(data['ideias'])
                 df_users.to_csv(csv_filename, index=False, encoding='utf-8')
-                self.logger.info(f"Ideias salvas em {csv_filename}")
+                self.logger.info("Ideias salvas em {csv_filename}")
                 
         except Exception as e:
-            self.logger.error(f"Erro ao salvar arquivos: {e}")
+            self.logger.error("Erro ao salvar arquivos: {e}")
 
 def json_extract_links(arquivo_json: str, chaves: List[str] = None) -> Dict[str, List[str]]:
     try:
@@ -128,7 +132,7 @@ def json_extract_links(arquivo_json: str, chaves: List[str] = None) -> Dict[str,
 
             return ideia_links
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Erro ao processar arquivo: {e}")
+        print("Erro ao processar arquivo: {e}")
         return {}
 
 def main():
@@ -137,22 +141,22 @@ def main():
     print(urls)
 
     # Inicializar crawler
-    crawler = SenaiWebCrawler(delay=3) # 545 pag totais
+    crawler = SenaiWebCrawler('', delay=3) # 545 pag totais
     print("🚀 Iniciando extração de dados da plataforma SENAI...")
 
     # Executar crawling
     data = crawler.crawl_all_pages(urls)
     
     # Exibir resultados
-    print(f"\n📊 Resultados da Extração:")
-    print(f"Total de páginas processadas: {data['total_paginas']}")
-    print(f"Total de ideias encontradas: {data['total_ideias']}")
+    print("\n📊 Resultados da Extração:")
+    print("Total de páginas processadas: {data['total_paginas']}")
+    print("Total de ideias encontradas: {data['total_ideias']}")
     
     # Salvar dados
-    print(f"\n💾 Salvando dados...")
+    print("\n💾 Salvando dados...")
     crawler.save_to_files(data, 'senai_desafio_1885')
     
-    print(f"\n✅ Extração concluída com sucesso!")
+    print("\n✅ Extração concluída com sucesso!")
     
     return data
 
